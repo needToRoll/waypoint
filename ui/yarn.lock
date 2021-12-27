@@ -7425,7 +7425,7 @@ ember-cli-babel-plugin-helpers@^1.0.0, ember-cli-babel-plugin-helpers@^1.1.0, em
   resolved "https://registry.yarnpkg.com/ember-cli-babel-plugin-helpers/-/ember-cli-babel-plugin-helpers-1.1.1.tgz#5016b80cdef37036c4282eef2d863e1d73576879"
   integrity sha512-sKvOiPNHr5F/60NLd7SFzMpYPte/nnGkq/tMIfXejfKHIhaiIkYFqX8Z9UFTKWLLn+V7NOaby6niNPZUdvKCRw==
 
-ember-cli-babel@^6.16.0, ember-cli-babel@^6.6.0, ember-cli-babel@^6.9.0:
+ember-cli-babel@^6.16.0, ember-cli-babel@^6.6.0:
   version "6.18.0"
   resolved "https://registry.yarnpkg.com/ember-cli-babel/-/ember-cli-babel-6.18.0.tgz#3f6435fd275172edeff2b634ee7b29ce74318957"
   integrity sha512-7ceC8joNYxY2wES16iIBlbPSxwKDBhYwC8drU3ZEvuPDMwVv1KzxCNu1fvxyFEBWhwaRNTUxSCsEVoTd9nosGA==
@@ -7563,14 +7563,14 @@ ember-cli-favicon@^3.0.0:
     ember-cli-babel "^7.26.6"
     lodash.merge "^4.6.2"
 
-ember-cli-flash@^2.1.1:
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/ember-cli-flash/-/ember-cli-flash-2.1.1.tgz#a1547676d20a8d6f5d0f523228d3e7c8a76486ee"
-  integrity sha512-JLqrc2gOwCFI8dB1hUV537Iv+yzplsgfVG3u4JSp8QAsQHPCGAT0XZR1yQDlXfoLwFGr1Akw8y72/TwN9jBW9w==
+ember-cli-flash@^2.2.0:
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/ember-cli-flash/-/ember-cli-flash-2.2.0.tgz#c95c5e2f3e82da86c4be12390fdd0f19de80a5e4"
+  integrity sha512-/s3sWmqf1mrP55BEewQxe5BoVHydOt2pIA0bO/HmvlFyS6bW0xkUoVBEJGPH42kKCTBwzpUm/D7jfbUngSCLpw==
   dependencies:
-    ember-cli-babel "^7.18.0"
-    ember-cli-htmlbars "^4.2.3"
-    ember-runtime-enumerable-includes-polyfill "^2.1.0"
+    "@ember/render-modifiers" "^1.0.2"
+    ember-cli-babel "^7.26.6"
+    ember-cli-htmlbars "^5.7.1"
 
 ember-cli-get-component-path-option@^1.0.0:
   version "1.0.0"
@@ -8300,14 +8300,6 @@ ember-router-service-refresh-polyfill@^0.1.0:
   dependencies:
     ember-cli-babel "^7.23.1"
     ember-cli-htmlbars "^5.3.2"
-
-ember-runtime-enumerable-includes-polyfill@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/ember-runtime-enumerable-includes-polyfill/-/ember-runtime-enumerable-includes-polyfill-2.1.0.tgz#dc6d4a028471e4acc350dfd2a149874fb20913f5"
-  integrity sha512-au18iI8VbEDYn3jLFZzETnKN5ciPgCUxMRucEP3jkq7qZ6sE0FVKpWMPY/h9tTND3VOBJt6fgPpEBJoJVCUudg==
-  dependencies:
-    ember-cli-babel "^6.9.0"
-    ember-cli-version-checker "^2.1.0"
 
 ember-set-helper@^2.0.0:
   version "2.0.0"
