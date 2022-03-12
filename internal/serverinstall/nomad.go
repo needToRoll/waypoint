@@ -51,11 +51,13 @@ type nomadConfig struct {
 	runnerResourcesCPU    string `hcl:"runner_resources_cpu,optional"`
 	runnerResourcesMemory string `hcl:"runner_resources_memory,optional"`
 
-	hostVolume           string `hcl:"host_volume,optional"`
-	csiVolumeProvider    string `hcl:"csi_volume_provider,optional"`
-	csiVolumeCapacityMin int64  `hcl:"csi_volume_capacity_min,optional"`
-	csiVolumeCapacityMax int64  `hcl:"csi_volume_capacity_max,optional"`
-	csiFS                string `hcl:"csi_fs,optional"`
+	hostVolume                string            `hcl:"host_volume,optional"`
+	csiVolumeProvider         string            `hcl:"csi_volume_provider,optional"`
+	csiVolumeCapacityMin      int64             `hcl:"csi_volume_capacity_min,optional"`
+	csiVolumeCapacityMax      int64             `hcl:"csi_volume_capacity_max,optional"`
+	csiFS                     string            `hcl:"csi_fs,optional"`
+	csiExistingVolumeSourceId string            `hcl:"csi_volume_source,optional"`
+	csiVolumeParameters       map[string]string `hcl:"csi_volume_parameters,optional"`
 
 	nomadHost string `hcl:"nomad_host,optional"`
 }
@@ -66,6 +68,7 @@ var (
 	defaultResourcesCPU    = 200
 	defaultResourcesMemory = 600
 
+	defaultWaypointVolumeId = "waypoint"
 	// bytes
 	defaultCSIVolumeCapacityMin = int64(1073741824)
 	defaultCSIVolumeCapacityMax = int64(2147483648)
@@ -82,6 +85,7 @@ var (
 		defaultConsulServiceTag, waypointConsulBackendName, defaultConsulDatacenter, defaultConsulDomain)
 
 	defaultNomadHost = "http://localhost:4646"
+	volumeSourceId   = defaultWaypointVolumeId
 )
 
 // Install is a method of NomadInstaller and implements the Installer interface to
@@ -187,38 +191,52 @@ func (i *NomadInstaller) Install(
 			return nil, fmt.Errorf("choose either CSI or host volume, not both")
 		}
 
-		s.Update("Creating persistent volume")
+		if i.config.csiExistingVolumeSourceId != "" {
+			s.Update("Custom volume source provided, checking abilities")
+			var volumeSourceId = i.config.csiExistingVolumeSourceId
+			volumeInfo, _, vqErr := client.CSIVolumes().Info(volumeSourceId, &api.QueryOptions{})
+			if vqErr != nil {
+				fmt.Errorf("If custom volume source is specified, a csi storage registration with the given id must exist. "+
+					"\n Failed to find registration with id: %s, Error is %s", volumeSourceId, vqErr)
+			} else {
+				s.Update("Using existing volume registration with id: %s", volumeInfo.ID)
+				volumeSourceId = volumeInfo.ID
+			}
+		} else {
 
-		vol := api.CSIVolume{
-			ID:   "waypoint",
-			Name: "waypoint",
-			RequestedCapabilities: []*api.CSIVolumeCapability{
-				{
-					AccessMode:     "single-node-writer",
-					AttachmentMode: "file-system",
+			s.Update("Creating persistent volume")
+
+			vol := api.CSIVolume{
+				ID:   volumeSourceId,
+				Name: "waypoint",
+				RequestedCapabilities: []*api.CSIVolumeCapability{
+					{
+						AccessMode:     "single-node-writer",
+						AttachmentMode: "file-system",
+					},
 				},
-			},
-			MountOptions: &api.CSIMountOptions{
-				FSType:     defaultCSIVolumeMountFS,
-				MountFlags: []string{"noatime"},
-			},
-			RequestedCapacityMin: defaultCSIVolumeCapacityMin,
-			RequestedCapacityMax: defaultCSIVolumeCapacityMax,
-			PluginID:             i.config.csiVolumeProvider,
-		}
-		if i.config.csiVolumeCapacityMin != 0 {
-			vol.RequestedCapacityMin = i.config.csiVolumeCapacityMin
-		}
-		if i.config.csiVolumeCapacityMax != 0 {
-			vol.RequestedCapacityMax = i.config.csiVolumeCapacityMax
-		}
-		if i.config.csiFS != "" {
-			vol.MountOptions.FSType = i.config.csiFS
-		}
+				MountOptions: &api.CSIMountOptions{
+					FSType:     defaultCSIVolumeMountFS,
+					MountFlags: []string{"noatime"},
+				},
+				RequestedCapacityMin: defaultCSIVolumeCapacityMin,
+				RequestedCapacityMax: defaultCSIVolumeCapacityMax,
+				PluginID:             i.config.csiVolumeProvider,
+			}
+			if i.config.csiVolumeCapacityMin != 0 {
+				vol.RequestedCapacityMin = i.config.csiVolumeCapacityMin
+			}
+			if i.config.csiVolumeCapacityMax != 0 {
+				vol.RequestedCapacityMax = i.config.csiVolumeCapacityMax
+			}
+			if i.config.csiFS != "" {
+				vol.MountOptions.FSType = i.config.csiFS
+			}
 
-		_, _, err = client.CSIVolumes().Create(&vol, &api.WriteOptions{})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "Failed creating Nomad persistent volume ID %s: %s", vol.ID, err)
+			_, _, err = client.CSIVolumes().Create(&vol, &api.WriteOptions{})
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "Failed creating Nomad persistent volume ID %s: %s", vol.ID, err)
+			}
 		}
 	}
 
@@ -894,7 +912,7 @@ func waypointNomadJob(c nomadConfig, rawRunFlags []string) *api.Job {
 
 	if c.csiVolumeProvider != "" {
 		volumeRequest.Type = "csi"
-		volumeRequest.Source = "waypoint"
+		volumeRequest.Source = volumeSourceId
 		volumeRequest.AccessMode = "single-node-writer"
 		volumeRequest.AttachmentMode = "file-system"
 	} else {
@@ -1261,6 +1279,13 @@ func (i *NomadInstaller) InstallFlags(set *flag.Set) {
 		Usage:  "Nomad CSI volume provider, required for volume type 'csi'.",
 	})
 
+	set.StringVar(&flag.StringVar{
+		Name:    "nomad-csi-existing-volume-source",
+		Target:  &i.config.csiExistingVolumeSourceId,
+		Default: "",
+		Usage:   "Id of existing csi volume registration, to be used as base in order to allocate waypoint volume. Optional, only affects volume type 'csi'.",
+	})
+
 	set.Int64Var(&flag.Int64Var{
 		Name:    "nomad-csi-volume-capacity-min",
 		Target:  &i.config.csiVolumeCapacityMin,
@@ -1273,6 +1298,13 @@ func (i *NomadInstaller) InstallFlags(set *flag.Set) {
 		Target:  &i.config.csiVolumeCapacityMax,
 		Usage:   "Nomad CSI volume capacity maximum, in bytes.",
 		Default: defaultCSIVolumeCapacityMax,
+	})
+
+	set.StringMapVar(&flag.StringMapVar{
+		Name:    "nomad-csi-volume-request-parameters",
+		Target:  &i.config.csiVolumeParameters,
+		Default: map[string]string{},
+		Usage:   "Parameters to pass to the volume creation request",
 	})
 
 	set.StringVar(&flag.StringVar{
